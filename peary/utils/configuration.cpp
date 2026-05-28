@@ -1,0 +1,191 @@
+#include "configuration.hpp"
+#include "exceptions.hpp"
+
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+
+using namespace caribou;
+
+Configuration::Configuration(const std::string& config, const std::string& section) : m_cur(&m_config[""]) {
+  std::istringstream confstr(config);
+  Load(confstr, section);
+}
+
+Configuration::Configuration(std::istream& conffile, const std::string& section) : m_cur(&m_config[""]) {
+  Load(conffile, section);
+}
+
+Configuration::Configuration(const Configuration& other) : m_config(other.m_config) {
+  SetSection(other.m_section);
+}
+
+std::string Configuration::Name() const {
+  auto it = m_config.find("");
+  if(it == m_config.end()) {
+    return "";
+  }
+  auto it2 = it->second.find("Name");
+  if(it2 == it->second.end()) {
+    return "";
+  }
+  return it2->second;
+}
+
+void Configuration::Save(std::ostream& stream) const {
+  for(const auto& i : m_config) {
+    if(!i.first.empty()) {
+      stream << "[" << i.first << "]\n";
+    }
+    for(const auto& j : i.second) {
+      stream << j.first << " = " << j.second << "\n";
+    }
+    stream << "\n";
+  }
+}
+
+Configuration& Configuration::operator=(const Configuration& other) {
+  m_config = other.m_config;
+  SetSection(other.m_section);
+  return *this;
+}
+
+void Configuration::Load(std::istream& stream, const std::string& section) {
+  map_t config;
+  section_t* cur_sec = &config[""];
+  for(;;) {
+    std::string line;
+    if(stream.eof()) {
+      break;
+    }
+    std::getline(stream, line);
+    size_t equals = line.find('=');
+    if(equals == std::string::npos) {
+      line = trim(line);
+      if(line.empty() || line[0] == ';' || line[0] == '#') {
+        continue;
+      }
+      if(line[0] == '[' && line[line.length() - 1] == ']') {
+        line = std::string(line, 1, line.length() - 2);
+        // TODO: check name is alphanumeric?
+        cur_sec = &config[line];
+      }
+    } else {
+      std::string key = trim(std::string(line, 0, equals));
+      std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+      // TODO: check key does not already exist
+      // handle lines like: blah = "foo said ""bar""; ok." # not "baz"
+      line = trim(std::string(line, equals + 1));
+      if((line[0] == '\'' && line[line.length() - 1] == '\'') || (line[0] == '\"' && line[line.length() - 1] == '\"')) {
+        line = std::string(line, 1, line.length() - 2);
+      } else {
+        size_t i = line.find_first_of(";#");
+        if(i != std::string::npos) {
+          line = trim(std::string(line, 0, i));
+        }
+      }
+      (*cur_sec)[key] = line;
+    }
+  }
+  m_config = config;
+  SetSection(section);
+}
+
+bool Configuration::SetSection(const std::string& section) const {
+  auto i = m_config.find(section);
+  if(i == m_config.end()) {
+    return false;
+  }
+  m_section = section;
+  m_cur = const_cast<section_t*>(&i->second);
+  return true;
+}
+
+bool Configuration::SetSection(const std::string& section) {
+  m_section = section;
+  m_cur = &m_config[section];
+  return true;
+}
+
+std::vector<std::string> Configuration::GetSections() {
+  std::vector<std::string> sections;
+  for(const auto& sec : m_config) {
+    if(!sec.first.empty()) {
+      sections.push_back(sec.first);
+    }
+  }
+  return sections;
+}
+
+bool Configuration::Has(const std::string& key) const {
+  return m_cur->find(key) != m_cur->cend();
+}
+
+std::string Configuration::Get(const std::string& key, const std::string& def) const {
+  try {
+    return GetString(key);
+  } catch(const std::exception&) {
+    // ignore: return default
+  }
+  return def;
+}
+
+double Configuration::Get(const std::string& key, double def) const {
+  try {
+    return from_string<double>(GetString(key));
+  } catch(const std::exception&) {
+    // ignore: return default
+  }
+  return def;
+}
+
+int64_t Configuration::Get(const std::string& key, int64_t def) const {
+  try {
+    std::string s = GetString(key);
+    return std::strtoll(s.c_str(), nullptr, 0);
+  } catch(const std::exception&) {
+    // ignore: return default
+  }
+  return def;
+}
+uint64_t Configuration::Get(const std::string& key, uint64_t def) const {
+  try {
+    std::string s = GetString(key);
+    return std::strtoull(s.c_str(), nullptr, 0);
+  } catch(const std::exception&) {
+    // ignore: return default
+  }
+  return def;
+}
+
+int Configuration::Get(const std::string& key, int def) const {
+  try {
+    std::string s = GetString(key);
+    return static_cast<int>(std::strtol(s.c_str(), nullptr, 0));
+  } catch(const std::exception&) {
+    // ignore: return default
+  }
+  return def;
+}
+
+void Configuration::Print(std::ostream& out) const {
+  for(const auto& it : *m_cur) {
+    out << it.first << " : " << it.second << std::endl;
+  }
+}
+
+void Configuration::Print() const {
+  Print(std::cout);
+}
+
+std::string Configuration::GetString(const std::string& key) const {
+  auto i = m_cur->find(key);
+  if(i != m_cur->end()) {
+    return i->second;
+  }
+  throw caribou::ConfigMissingKey("Key \"" + key + "\" not found");
+}
+
+void Configuration::SetString(const std::string& key, const std::string& val) {
+  (*m_cur)[key] = val;
+}

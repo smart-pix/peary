@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=${prefix}/lib
+includedir=${prefix}/include/peary/@PROJECT_NAME@
+
+Name: @PROJECT_NAME@
+Description: Peary library
+Version: @PROJECT_VERSION@
+
+Requires:
+Libs: -L${libdir} -lpeary
+Cflags: -I${includedir}

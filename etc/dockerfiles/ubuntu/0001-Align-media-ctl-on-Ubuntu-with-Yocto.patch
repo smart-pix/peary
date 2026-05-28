@@ -1,0 +1,191 @@
+From dbecb0395348d11c64dad56b5741e9b344fffd35 Mon Sep 17 00:00:00 2001
+From: Adrian Fiergolski <adrian.fiergolski@fastree3d.com>
+Date: Fri, 14 May 2021 10:49:00 +0200
+Subject: [PATCH] Align media-ctl on Ubuntu with Yocto.
+
+---
+ ...-Don-t-install-libmediactl-and-libv4.patch | 43 +++++++++++++++++++
+ debian/patches/export-mediactl-headers.patch  | 23 ++++++++++
+ debian/patches/mediactl-pkgconfig.patch       | 20 +++++++++
+ debian/patches/series                         |  3 ++
+ debian/rules                                  |  4 ++
+ debian/v4l-utils.install                      |  3 ++
+ 6 files changed, 96 insertions(+)
+ create mode 100644 debian/patches/0001-Revert-media-ctl-Don-t-install-libmediactl-and-libv4.patch
+ create mode 100644 debian/patches/export-mediactl-headers.patch
+ create mode 100644 debian/patches/mediactl-pkgconfig.patch
+
+diff --git a/debian/patches/0001-Revert-media-ctl-Don-t-install-libmediactl-and-libv4.patch b/debian/patches/0001-Revert-media-ctl-Don-t-install-libmediactl-and-libv4.patch
+new file mode 100644
+index 0000000..eb294b3
+--- /dev/null
++++ b/debian/patches/0001-Revert-media-ctl-Don-t-install-libmediactl-and-libv4.patch
+@@ -0,0 +1,43 @@
++From 67a6e919b8263d6d2b7150e62f26fb06bbc526ef Mon Sep 17 00:00:00 2001
++From: Khem Raj <raj.khem@gmail.com>
++Date: Fri, 27 Feb 2015 21:55:36 +0000
++Subject: [PATCH] Revert "media-ctl: Don't install libmediactl and
++ libv4l2subdev"
++
++This reverts commit 0911dce53b08b0df3066be2c75f67e8a314d8729.
++
++Signed-off-by: Khem Raj <raj.khem@gmail.com>
++
++Conflicts:
++	utils/media-ctl/Makefile.am
++
++---
++ utils/media-ctl/Makefile.am | 10 +++-------
++ 1 file changed, 3 insertions(+), 7 deletions(-)
++
++diff --git a/utils/media-ctl/Makefile.am b/utils/media-ctl/Makefile.am
++index ee7dcc9..d11fa2e 100644
++--- a/utils/media-ctl/Makefile.am
+++++ b/utils/media-ctl/Makefile.am
++@@ -1,8 +1,7 @@
++-noinst_LTLIBRARIES = libmediactl.la libv4l2subdev.la
++-
+++lib_LTLIBRARIES = libmediactl.la libv4l2subdev.la
++ libmediactl_la_SOURCES = libmediactl.c mediactl-priv.h
++-libmediactl_la_CFLAGS = -static $(LIBUDEV_CFLAGS)
++-libmediactl_la_LDFLAGS = -static $(LIBUDEV_LIBS)
+++libmediactl_la_CFLAGS = $(LIBUDEV_CFLAGS)
+++libmediactl_la_LDFLAGS = $(LIBUDEV_LIBS)
++ 
++ media-bus-format-names.h: ../../include/linux/media-bus-format.h
++ 	$(AM_V_GEN) sed -e '/#define MEDIA_BUS_FMT/ ! d; s/.*FMT_//; /FIXED/ d; s/\t.*//; s/.*/{ \"&\", MEDIA_BUS_FMT_& },/;' \
++@@ -18,9 +17,6 @@ CLEANFILES = $(BUILT_SOURCES)
++ nodist_libv4l2subdev_la_SOURCES = $(BUILT_SOURCES)
++ libv4l2subdev_la_SOURCES = libv4l2subdev.c
++ libv4l2subdev_la_LIBADD = libmediactl.la
++-libv4l2subdev_la_CFLAGS = -static
++-libv4l2subdev_la_LDFLAGS = -static
++-
++ mediactl_includedir=$(includedir)/mediactl
++ noinst_HEADERS = mediactl.h v4l2subdev.h
++ 
+diff --git a/debian/patches/export-mediactl-headers.patch b/debian/patches/export-mediactl-headers.patch
+new file mode 100644
+index 0000000..55a5cdc
+--- /dev/null
++++ b/debian/patches/export-mediactl-headers.patch
+@@ -0,0 +1,23 @@
++From b82e509c10659a4647961a6da3adf4d285dea2dd Mon Sep 17 00:00:00 2001
++From: Khem Raj <raj.khem@gmail.com>
++Date: Sun, 1 Mar 2015 22:25:07 +0000
++
++---
++ utils/media-ctl/Makefile.am | 4 ++--
++ 1 file changed, 2 insertions(+), 2 deletions(-)
++
++diff --git a/utils/media-ctl/Makefile.am b/utils/media-ctl/Makefile.am
++index 7c520a2..748353d 100644
++--- a/utils/media-ctl/Makefile.am
+++++ b/utils/media-ctl/Makefile.am
++@@ -17,8 +17,8 @@ CLEANFILES = $(BUILT_SOURCES)
++ nodist_libv4l2subdev_la_SOURCES = $(BUILT_SOURCES)
++ libv4l2subdev_la_SOURCES = libv4l2subdev.c
++ libv4l2subdev_la_LIBADD = libmediactl.la
++-mediactl_includedir=$(includedir)/mediactl
++-noinst_HEADERS = mediactl.h v4l2subdev.h
+++otherincludedir = $(includedir)/mediactl
+++otherinclude_HEADERS = mediactl.h v4l2subdev.h
++ 
++ pkgconfig_DATA = libmediactl.pc
++ bin_PROGRAMS = media-ctl
+diff --git a/debian/patches/mediactl-pkgconfig.patch b/debian/patches/mediactl-pkgconfig.patch
+new file mode 100644
+index 0000000..9fcf611
+--- /dev/null
++++ b/debian/patches/mediactl-pkgconfig.patch
+@@ -0,0 +1,20 @@
++From 480c04ac6a9d11bfef9d4aca073052fdcee4fdea Mon Sep 17 00:00:00 2001
++From: Khem Raj <raj.khem@gmail.com>
++Date: Sun, 1 Mar 2015 22:25:07 +0000
++
++---
++ utils/media-ctl/Makefile.am | 1 +
++ 1 file changed, 1 insertion(+)
++
++diff --git a/utils/media-ctl/Makefile.am b/utils/media-ctl/Makefile.am
++index d11fa2e..7c520a2 100644
++--- a/utils/media-ctl/Makefile.am
+++++ b/utils/media-ctl/Makefile.am
++@@ -20,6 +20,7 @@ libv4l2subdev_la_LIBADD = libmediactl.la
++ mediactl_includedir=$(includedir)/mediactl
++ noinst_HEADERS = mediactl.h v4l2subdev.h
++ 
+++pkgconfig_DATA = libmediactl.pc
++ bin_PROGRAMS = media-ctl
++ media_ctl_SOURCES = media-ctl.c options.c options.h tools.h
++ media_ctl_LDADD = libmediactl.la libv4l2subdev.la
+diff --git a/debian/patches/series b/debian/patches/series
+index 11a7c1f..77677cb 100644
+--- a/debian/patches/series
++++ b/debian/patches/series
+@@ -1 +1,4 @@
+ dont-gererate-treeview.diff
++0001-Revert-media-ctl-Don-t-install-libmediactl-and-libv4.patch
++mediactl-pkgconfig.patch
++export-mediactl-headers.patch
+diff --git a/debian/rules b/debian/rules
+index 3f6c760..fa08e65 100755
+--- a/debian/rules
++++ b/debian/rules
+@@ -7,6 +7,7 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+bindnow
+ # latex generation seems to be broken
+ CONFIGURE_FLAGS += --enable-doxygen-man --disable-doxygen-ps --disable-doxygen-pdf
+ CONFIGURE_FLAGS += --disable-qvidcap
++CONFIGURE_FLAGS += --enable-v4l-utils --enable-shared
+ 
+ %:
+ 	dh $@ --with autoreconf
+@@ -27,6 +28,9 @@ override_dh_install:
+ 
+ 	dh_install --list-missing
+ 
++	#Remove libv4l2subdev.so from v4l-dev
++	rm -f debian/libv4l-dev/usr/lib/*/libv4l2subdev.*
++
+ override_dh_installchangelogs:
+ 	dh_installchangelogs -Nlibv4l-dev -Nv4l-utils -Nqv4l2 ChangeLog
+ 
+diff --git a/debian/v4l-utils.install b/debian/v4l-utils.install
+index b822134..525c657 100644
+--- a/debian/v4l-utils.install
++++ b/debian/v4l-utils.install
+@@ -6,6 +6,9 @@ usr/bin/decode_tm6000
+ usr/bin/ir-ctl
+ usr/bin/ivtv-ctl
+ usr/bin/media-ctl
++usr/lib/*/libmediactl.so*
++usr/lib/*/libv4l2subdev.so*
++usr/include/mediactl/*
+ usr/bin/rds-ctl
+ usr/bin/v4l2-compliance
+ usr/bin/v4l2-ctl
+
+diff --git a/debian/libv4l-dev.install b/debian/libv4l-dev.install
+index 8bdc9a1..3daee6e 100644
+--- a/debian/libv4l-dev.install
++++ b/debian/libv4l-dev.install
+@@ -2,3 +2,5 @@ usr/include/libv4l*
+ usr/lib/*/libv4l*.so
+ usr/lib/*/libv4l*.a
+ usr/lib/*/pkgconfig/libv4l*
++usr/lib/*/libmediactl.a
++usr/lib/*/pkgconfig/libmediactl.pc
+
+diff --git a/debian/not-installed b/debian/not-installed
+index 44813ea..3b9f6de 100644
+--- a/debian/not-installed
++++ b/debian/not-installed
+@@ -8,3 +8,5 @@ usr/lib/*/libv4lconvert.la
+ usr/lib/*/v4l1compat.so
+ usr/lib/*/v4l2convert.so
+ usr/lib/*/libv4l/plugins/libv4l-mplane.la
++usr/lib/x86_64-linux-gnu/libmediactl.la
++usr/lib/x86_64-linux-gnu/libv4l2subdev.la
+
+-- 
+2.31.1

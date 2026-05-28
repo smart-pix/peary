@@ -1,0 +1,24 @@
+#
+# Ubuntu Dockerfile
+#
+# https://github.com/dockerfile/ubuntu
+#
+
+# Pull base image.
+FROM gitlab-registry.cern.ch/sft/docker/centos8:latest
+
+# Switch to root user
+USER root
+
+ARG CENTOS_LIBIIO_PATH="https://github.com/analogdevicesinc/libiio/releases/download/v0.21/libiio-0.21.g565bf68-centos-8-x86_64.rpm"
+
+# Install peary specific dependencies
+RUN \
+  yum install -y wget && \
+  wget -O /tmp/libiio.rpm $CENTOS_LIBIIO_PATH  && \
+  yum install -y /tmp/libiio.rpm && \
+  yum clean all && \
+  rm /tmp/libiio.rpm
+
+# Restore the default sft user
+USER sftnight

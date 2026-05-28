@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=${prefix}/lib
+includedir=${prefix}/include/@PROJECT_NAME@/devices/@_peary_device_dir@
+
+Name: @PEARY_DEVICE_NAME@
+Description: @PEARY_DEVICE_NAME@ device peary library
+Version: @PROJECT_VERSION@
+
+Requires: peary
+Libs: -L${libdir} -l@PEARY_DEVICE_NAME@
+Cflags: -I${includedir}

@@ -1,0 +1,46 @@
+#
+# Ubuntu Dockerfile
+#
+# https://github.com/dockerfile/ubuntu
+#
+
+# Pull base image.
+FROM ubuntu:22.04
+
+# Set time zone
+ENV TZ=Europe/Berlin
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+COPY ubuntu/0001-Align-media-ctl-on-Ubuntu-with-Yocto.patch /tmp/0001-Align-media-ctl-on-Ubuntu-with-Yocto.patch
+
+# Install.
+RUN \
+  sed -i 's/# \(.*multiverse$\)/\1/g' /etc/apt/sources.list && \
+  sed -i 's/# \(deb-src .*$\)/\1/g' /etc/apt/sources.list && \
+  apt-get update && \
+  apt-get -y upgrade && \
+  apt-get install -y cmake ninja-build build-essential && \
+  apt-get install -y software-properties-common && \
+  apt-get install -y libi2c-dev libreadline-dev && \
+  apt-get install -y libiio-dev && \
+  apt-get install -y byobu curl git htop man unzip vim wget && \
+  apt-get install -y clang clang-format clang-tidy && \
+  apt-get install -y libncurses-dev && \
+  #Patch and install v4l-utils aligned with Yocto \
+  mkdir /tmp/v4l-utils/ && cd /tmp/v4l-utils/ && \
+  apt-get install -y devscripts && \
+  apt-get source v4l-utils && apt-get build-dep -y v4l-utils && \
+  cd v4l-utils-* && patch -p1 < /tmp/0001-Align-media-ctl-on-Ubuntu-with-Yocto.patch && \
+  DEBEMAIL=Adrian.Fiergolski@fastree3d.com DEBFULLNAME='Adrian Fiergolski' dch -i "Align with Yocto." && \
+  debuild -us -uc && cd .. && dpkg -i *.deb && \
+  cd && rm -Rf /tmp/* && \
+  rm -rf /var/lib/apt/lists/*
+
+# Set environment variables.
+ENV HOME /root
+
+# Define working directory.
+WORKDIR /root
+
+# Define default command.
+CMD ["bash"]

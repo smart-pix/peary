@@ -21,6 +21,7 @@ SpacelyCaribouBasicDevice::SpacelyCaribouBasicDevice(const caribou::Configuratio
 
   _dispatcher.add("streamMemoryToFile", &SpacelyCaribouBasicDevice::streamMemoryToFile,this);
   _dispatcher.add("burstReadDataArray1", &SpacelyCaribouBasicDevice::burstReadDataArray1,this);
+  _dispatcher.add("burstWriteSw0", &SpacelyCaribouBasicDevice::burstWriteSw0,this);
 
   _dispatcher.add("configureSI5345", &SpacelyCaribouBasicDevice::configureSI5345, this);
   _dispatcher.add("disableSI5345", &SpacelyCaribouBasicDevice::disableSI5345, this);
@@ -115,6 +116,30 @@ std::string SpacelyCaribouBasicDevice::burstReadDataArray1(const unsigned int op
     result.push_back(static_cast<char>((word >> 24) & 0xFF));
   }
   return result;
+}
+
+
+void SpacelyCaribouBasicDevice::burstWriteSw0(const std::string& values_csv) {
+
+  // Parse a comma-separated list of decimal-encoded 32-bit values (one per
+  // hex_list entry, in the order they must be written) and write each one
+  // to sw_write32_0 locally, with no per-word network round trip. This
+  // reproduces the per-word write loop the Python side used to do over the
+  // network (once per hex_list entry), collapsed into a single request.
+  size_t start = 0;
+  while (start <= values_csv.size()) {
+    size_t comma = values_csv.find(',', start);
+    std::string token = (comma == std::string::npos)
+                             ? values_csv.substr(start)
+                             : values_csv.substr(start, comma - start);
+    if (!token.empty()) {
+      this->setMemory("sw_write32_0", std::stoul(token));
+    }
+    if (comma == std::string::npos) {
+      break;
+    }
+    start = comma + 1;
+  }
 }
 
 

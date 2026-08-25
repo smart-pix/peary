@@ -44,6 +44,7 @@ namespace caribou {
     void checkSI5345Locked();
     void configureSI5345(int config_num);
     void streamMemoryToFile(const std::string& name, const unsigned int N);
+    std::string burstReadDataArray1(const unsigned int opcode, const unsigned int base_addr, const unsigned int N);
     void disableSI5345();
 
     void setInputCMOSLevel(double voltage);

@@ -20,7 +20,8 @@ SpacelyCaribouBasicDevice::SpacelyCaribouBasicDevice(const caribou::Configuratio
   _dispatcher.add("car_i2c_read", &SpacelyCaribouBasicDevice::car_i2c_read, this);
 
   _dispatcher.add("streamMemoryToFile", &SpacelyCaribouBasicDevice::streamMemoryToFile,this);
-  
+  _dispatcher.add("burstReadDataArray1", &SpacelyCaribouBasicDevice::burstReadDataArray1,this);
+
   _dispatcher.add("configureSI5345", &SpacelyCaribouBasicDevice::configureSI5345, this);
   _dispatcher.add("disableSI5345", &SpacelyCaribouBasicDevice::disableSI5345, this);
   _dispatcher.add("checkSI5345Locked", &SpacelyCaribouBasicDevice::checkSI5345Locked, this);
@@ -91,6 +92,29 @@ void SpacelyCaribouBasicDevice::streamMemoryToFile(const std::string& name, cons
   _hal->streamMemoryToFile(mem, offset, N, "memory_dump.txt");
 
 
+}
+
+
+std::string SpacelyCaribouBasicDevice::burstReadDataArray1(const unsigned int opcode, const unsigned int base_addr, const unsigned int N) {
+
+  // For each of the N words, trigger the FPGA to mux the word at
+  // <base_addr + i> onto sw_read32_0 (via sw_write32_0), then read it back
+  // immediately. This reproduces the per-word write+read sequence the
+  // Python side used to do over the network, but locally with no TCP RTT
+  // per word. Words are returned little-endian, in increasing address order.
+  std::string result;
+  result.reserve(N * 4);
+  for (unsigned int i = 0; i < N; i++) {
+    uintptr_t address = base_addr + i;
+    uintptr_t write_value = (uintptr_t(0x2) << 28) | (uintptr_t(opcode & 0xF) << 24) | ((address & 0xFF) << 16);
+    this->setMemory("sw_write32_0", write_value);
+    uint32_t word = static_cast<uint32_t>(this->getMemory("sw_read32_0"));
+    result.push_back(static_cast<char>(word & 0xFF));
+    result.push_back(static_cast<char>((word >> 8) & 0xFF));
+    result.push_back(static_cast<char>((word >> 16) & 0xFF));
+    result.push_back(static_cast<char>((word >> 24) & 0xFF));
+  }
+  return result;
 }
 
 

@@ -5,6 +5,8 @@
 #include "SpacelyCaribouBasicDevice.hpp"
 #include "utils/log.hpp"
 
+#include <chrono>
+
 using namespace caribou;
 using namespace carboard;
 
@@ -22,6 +24,7 @@ SpacelyCaribouBasicDevice::SpacelyCaribouBasicDevice(const caribou::Configuratio
   _dispatcher.add("streamMemoryToFile", &SpacelyCaribouBasicDevice::streamMemoryToFile,this);
   _dispatcher.add("burstReadDataArray1", &SpacelyCaribouBasicDevice::burstReadDataArray1,this);
   _dispatcher.add("burstWriteSw0", &SpacelyCaribouBasicDevice::burstWriteSw0,this);
+  _dispatcher.add("burstPollStatusDone", &SpacelyCaribouBasicDevice::burstPollStatusDone,this);
 
   _dispatcher.add("configureSI5345", &SpacelyCaribouBasicDevice::configureSI5345, this);
   _dispatcher.add("disableSI5345", &SpacelyCaribouBasicDevice::disableSI5345, this);
@@ -139,6 +142,31 @@ void SpacelyCaribouBasicDevice::burstWriteSw0(const std::string& values_csv) {
       break;
     }
     start = comma + 1;
+  }
+}
+
+
+std::string SpacelyCaribouBasicDevice::burstPollStatusDone(const unsigned int bit_index, const unsigned int timeout_us) {
+
+  // Spin-read sw_read32_1 locally (no per-poll network round trip) until the
+  // requested status bit goes high, or timeout_us elapses. Replaces a fixed
+  // sleep with a wait on a real hardware "done" flag, e.g. bit 14 =
+  // sm_test1_o_status_done (the ip1 CONFIG-SHIFT-REG-programmed flag,
+  // aggregated into sw_read32_1 by com_status32_reg.sv/com_sw_to_fw.sv).
+  // Reply is "<0 or 1>,<elapsed_us>" so the caller can tell a real completion
+  // from a timeout and see how long it actually took.
+  auto t_start = std::chrono::steady_clock::now();
+  uint32_t mask = (1u << bit_index);
+  while (true) {
+    uint32_t sw_read32_1 = static_cast<uint32_t>(this->getMemory("sw_read32_1"));
+    auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now() - t_start).count();
+    if (sw_read32_1 & mask) {
+      return "1," + std::to_string(elapsed_us);
+    }
+    if (elapsed_us >= static_cast<long long>(timeout_us)) {
+      return "0," + std::to_string(elapsed_us);
+    }
   }
 }
 

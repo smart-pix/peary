@@ -46,6 +46,7 @@ namespace caribou {
     void streamMemoryToFile(const std::string& name, const unsigned int N);
     std::string burstReadDataArray1(const unsigned int opcode, const unsigned int base_addr, const unsigned int N);
     void burstWriteSw0(const std::string& values_csv);
+    std::string burstPollStatusDone(const unsigned int bit_index, const unsigned int timeout_us);
     void disableSI5345();
 
     void setInputCMOSLevel(double voltage);
